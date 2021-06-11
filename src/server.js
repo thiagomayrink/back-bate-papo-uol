@@ -67,6 +67,10 @@ server.post("/messages", (req,res)=>{
 server.get("/messages", (req,res)=>{
     const {user} = req.headers;
     const limit = req.query.limit;
+    const OnlineUser = users.find((u)=> u.name === user);
+    if (!OnlineUser){
+        return;
+    }
     if (!limit && user){
         const filteredMessages = messages.filter((m)=>{
             if ( m.to === user || m.from === user || m.to === 'Todos'){
@@ -88,27 +92,36 @@ server.get("/messages", (req,res)=>{
     }
 })
 function checkUserStatus() {
+    const timeCheck = Date.now();
     server.post("/status",(req,res)=>{
         const {user} = req.headers;
-        if (!user || user === null) {return res.end();} //não está funcionando.
-        if(!users.some((e) => {return e.name === user})){
+        const OnlineUser = users.find((u)=> u.name === user);
+        if (!OnlineUser){
+            res.status(408).send("User has timed out");
+            return res.end();
+        }
+        const leaseTime = timeCheck - OnlineUser.lastStatus;
+        if(leaseTime <= 10000){
+            OnlineUser.lastStatus = `${Date.now()}`
+            return res.sendStatus(200);
+        }
+    })
+    users.forEach((user,index)=>{
+        const leaseTime = timeCheck - user.lastStatus;
+        if (leaseTime > 10000){
             const date = new Date();
             const time = date.toLocaleTimeString('pt-br');
             const message = 
             {
-                from: user,
+                from: user.name,
                 to: 'Todos',
                 text: 'sai da sala...',
                 type: 'status',
                 time: time
             }
             messages.push(message);
-            res.status(408).send("User has timed out");
-            return res.end();
+            users.splice(index);
         }
-        const OnlineUser = users.find((u)=> u.name === user);
-        OnlineUser.lastStatus = `${Date.now()}`
-        res.sendStatus(200);
     })
 }
 setInterval(checkUserStatus,15000);

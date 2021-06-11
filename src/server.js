@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import { stripHtml } from "string-strip-html";
 
 const server = express();
 server.use(cors());
@@ -9,8 +10,8 @@ const users  = [];
 const messages = [];
 
 server.post("/participants", (req,res)=>{
-    const {name} = req.body;
-    //sanitize name here!
+    const {name: rawName} = req.body;
+    const name = stripHtml(rawName).result;
     const isOnline = users.some((e)=> {return e.name === name});
     if (!name || isOnline){
         res.send("bad username or user is already connected").status(401)
@@ -38,9 +39,12 @@ server.get("/participants",(req, res) =>{
     res.send(users);
 })
 server.post("/messages", (req,res)=>{
-    const {user: from} = req.headers;
-    const {to, text, type} = req.body;
-    //sanitize text here!
+    const {user: rawFrom} = req.headers;
+    const {to:rawTo, text:rawText, type:rawType} = req.body;
+    const from = stripHtml(rawFrom).result;
+    const to = stripHtml(rawTo).result;
+    const text = stripHtml(rawText).result;
+    const type = stripHtml(rawType).result;
     if(!users.some((e)=> {
         return e.name === from;
     })){
@@ -69,7 +73,7 @@ server.get("/messages", (req,res)=>{
     const limit = req.query.limit;
     const OnlineUser = users.find((u)=> u.name === user);
     if (!OnlineUser){
-        return;
+        return res.sendStatus(401);
     }
     if (!limit && user){
         const filteredMessages = messages.filter((m)=>{
@@ -94,7 +98,8 @@ server.get("/messages", (req,res)=>{
 function checkUserStatus() {
     const timeCheck = Date.now();
     server.post("/status",(req,res)=>{
-        const {user} = req.headers;
+        const {user: rawUser} = req.headers;
+        const user = stripHtml(rawUser).result;
         const OnlineUser = users.find((u)=> u.name === user);
         if (!OnlineUser){
             res.status(408).send("User has timed out");

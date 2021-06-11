@@ -126,7 +126,7 @@ function checkUserStatus() {
                 time: time
             }
             messages.push(message);
-            users.splice(index);
+            users.splice(index,1);
         }
     })
 }

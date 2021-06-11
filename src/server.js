@@ -95,22 +95,23 @@ server.get("/messages", (req,res)=>{
         return res.status(200).send(filteredMessages);
     }
 })
+server.post("/status",(req,res)=>{
+    const timeCheck = Date.now();
+    const {user: rawUser} = req.headers;
+    const user = stripHtml(rawUser).result;
+    const OnlineUser = users.find((u)=> u.name === user);
+    if (!OnlineUser){
+        res.status(408).send("User has timed out");
+        return res.end();
+    }
+    const leaseTime = timeCheck - OnlineUser.lastStatus;
+    if(leaseTime <= 10000){
+        OnlineUser.lastStatus = `${Date.now()}`
+        return res.sendStatus(200);
+    }
+})
 function checkUserStatus() {
     const timeCheck = Date.now();
-    server.post("/status",(req,res)=>{
-        const {user: rawUser} = req.headers;
-        const user = stripHtml(rawUser).result;
-        const OnlineUser = users.find((u)=> u.name === user);
-        if (!OnlineUser){
-            res.status(408).send("User has timed out");
-            return res.end();
-        }
-        const leaseTime = timeCheck - OnlineUser.lastStatus;
-        if(leaseTime <= 10000){
-            OnlineUser.lastStatus = `${Date.now()}`
-            return res.sendStatus(200);
-        }
-    })
     users.forEach((user,index)=>{
         const leaseTime = timeCheck - user.lastStatus;
         if (leaseTime > 10000){
